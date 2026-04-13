@@ -1,8 +1,9 @@
 <%- include('partials/header') %>
 
 <section class="card border-0 shadow-sm">
-  <div class="card-header bg-white py-3">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
     <h5 class="mb-0">Tulis Pesan Baru</h5>
+    <span class="badge text-bg-info">Domain tersedia: <%= mailDomains.join(', ') %></span>
   </div>
   <div class="card-body">
     <form action="/messages" method="post" class="row g-3">
@@ -15,7 +16,7 @@
         <input
           class="form-control"
           name="to"
-          placeholder="contoh: sales atau sales@<%= domain %>"
+          placeholder="contoh: user@<%= mailDomains[0] %>"
           required
         />
       </div>

@@ -20,8 +20,11 @@ const {
 const app = express();
 
 const PORT = Number(process.env.PORT || 4000);
-const APP_NAME = process.env.APP_NAME || 'Mail Box';
-const APP_DOMAIN = process.env.APP_DOMAIN || 'mail.local';
+const APP_NAME = process.env.APP_NAME || 'Temp Mail Box';
+const MAIL_DOMAINS = (process.env.MAIL_DOMAINS || process.env.APP_DOMAIN || 'mail.local')
+  .split(',')
+  .map((item) => item.trim().toLowerCase())
+  .filter(Boolean);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -37,13 +40,23 @@ app.use(
   })
 );
 
+function randomLocalPart() {
+  const seed = Math.random().toString(36).slice(2, 10);
+  return `tmp-${seed}`;
+}
+
+function pickDomain(domain) {
+  const safe = String(domain || '').trim().toLowerCase();
+  return MAIL_DOMAINS.includes(safe) ? safe : MAIL_DOMAINS[0];
+}
+
 app.use((req, res, next) => {
   if (!req.session.user) {
-    req.session.user = `admin@${APP_DOMAIN}`;
+    req.session.user = `${randomLocalPart()}@${MAIL_DOMAINS[0]}`;
   }
 
   res.locals.appName = APP_NAME;
-  res.locals.domain = APP_DOMAIN;
+  res.locals.mailDomains = MAIL_DOMAINS;
   res.locals.currentUser = req.session.user;
   res.locals.flash = req.session.flash || null;
   req.session.flash = null;
@@ -59,13 +72,29 @@ app.get('/', (_req, res) => {
 });
 
 app.post('/switch-user', (req, res) => {
-  const target = normalizeEmail(req.body.user, APP_DOMAIN);
+  const selectedDomain = pickDomain(req.body.domain);
+  const target = normalizeEmail(req.body.user, selectedDomain);
   if (!target) {
     setFlash(req, 'warning', 'Nama mailbox tidak boleh kosong.');
     return res.redirect('back');
   }
+
+  const [, domain = selectedDomain] = target.split('@');
+  if (!MAIL_DOMAINS.includes(domain)) {
+    setFlash(req, 'danger', 'Domain tidak tersedia. Pilih domain yang ada di daftar.');
+    return res.redirect('back');
+  }
+
   req.session.user = target;
   setFlash(req, 'success', `Mailbox aktif diganti ke ${target}.`);
+  return res.redirect('/inbox');
+});
+
+app.post('/temp-email/random', (req, res) => {
+  const domain = pickDomain(req.body.domain);
+  const email = `${randomLocalPart()}@${domain}`;
+  req.session.user = email;
+  setFlash(req, 'success', `Email sementara baru: ${email}`);
   return res.redirect('/inbox');
 });
 
@@ -85,7 +114,7 @@ app.post('/messages', async (req, res) => {
     to,
     subject,
     body,
-    domain: APP_DOMAIN
+    defaultDomain: MAIL_DOMAINS[0]
   });
   setFlash(req, 'success', 'Pesan berhasil dikirim.');
   return res.redirect('/sent');
@@ -148,4 +177,5 @@ app.post('/messages/:id/delete', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`${APP_NAME} berjalan di http://localhost:${PORT}`);
+  console.log(`Domain aktif: ${MAIL_DOMAINS.join(', ')}`);
 });

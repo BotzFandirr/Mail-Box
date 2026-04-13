@@ -1,22 +1,21 @@
-# Mail Box (Node.js + EJS + Bootstrap 5)
+# Temp Mail Box (Node.js + EJS + Bootstrap 5)
 
-Web **Mail Box full-stack** sederhana menggunakan:
+Web **email sementara** (temporary email) full-stack menggunakan:
 - Node.js + Express
-- EJS template engine
-- Bootstrap 5 UI
-- SweetAlert2 + Bootstrap Toast untuk alert yang modern (tanpa `alert()` kaku)
+- EJS
+- Bootstrap 5
+- SweetAlert2 + Bootstrap Toast (alert UI modern, bukan alert kaku)
 
-Aplikasi berjalan default di **port `4000`** dan siap diatur agar mudah dikelola dengan domain Anda.
+Default berjalan di **port 4000**.
 
----
+## Fitur
+- Generate email random (contoh: `tmp-ab12cd34@mailnesia.com`)
+- Dukungan **banyak domain** sekaligus
+- Ganti email aktif manual (custom username + pilih domain)
+- Inbox, Sent, Trash, restore, delete permanen
+- UI modern dan responsif
 
-## 1) Setup Cepat
-
-## Prasyarat
-- Node.js 18+
-- npm
-
-### Install & Jalankan
+## 1) Install
 ```bash
 npm install
 cp .env.example .env
@@ -25,77 +24,41 @@ npm run start
 
 Buka: `http://localhost:4000`
 
-Untuk mode development:
-```bash
-npm run dev
-```
-
----
-
-## 2) Konfigurasi Environment
-
-Edit file `.env`:
+## 2) Konfigurasi banyak domain
+Edit `.env`:
 
 ```env
 PORT=4000
-APP_NAME=Mail Box
-APP_DOMAIN=mail.domainanda.com
-SESSION_SECRET=ganti-dengan-secret-kuat
+APP_NAME=Temp Mail Box
+MAIL_DOMAINS=mailnesia.com,mailboxku.id,tmpinbox.net
+SESSION_SECRET=ganti-secret-anda
 ```
 
-Keterangan:
-- `PORT`: port aplikasi (default 4000)
-- `APP_DOMAIN`: domain email lokal yang dipakai saat tulis/ganti mailbox
-  - Contoh: ketik `support` otomatis jadi `support@mail.domainanda.com`
-- `SESSION_SECRET`: secret session Express
+> `MAIL_DOMAINS` dipisah koma. Domain pertama jadi default.
 
----
+## 3) Cara pakai
+1. Buka halaman utama, klik **Generate Random** untuk email sementara baru.
+2. Atau isi username sendiri lalu pilih domain, klik **Pakai Email**.
+3. Kirim pesan antar alamat pada domain yang Anda kelola.
 
-## 3) Fitur Utama
+## 4) Setup domain ke server (mudah dikelola)
 
-- Ganti mailbox aktif (simulasi multi-user) langsung dari UI.
-- Compose, Inbox, Sent, Trash.
-- Soft delete (pindah trash), restore, dan delete permanen per mailbox.
-- Status pesan baru (unread badge).
-- Alert UI modern:
-  - Toast notifikasi sukses/gagal
-  - Konfirmasi aksi dengan SweetAlert2
+### DNS
+Buat beberapa `A record` (contoh):
+- `mailnesia.com -> IP_SERVER`
+- `mailboxku.id -> IP_SERVER`
+- `tmpinbox.net -> IP_SERVER`
 
----
-
-## 4) Setup Domain (Mudah Dikelola)
-
-Berikut alur paling mudah (contoh dengan Nginx sebagai reverse proxy).
-
-### A. Atur DNS Domain
-Di provider domain Anda, buat record:
-- Type: `A`
-- Name: `mail` (atau subdomain lain)
-- Value: `IP_SERVER_ANDA`
-
-Contoh hasil: `mail.domainanda.com`
-
-### B. Jalankan App dengan Process Manager (PM2)
-```bash
-npm install -g pm2
-pm2 start app.js --name mail-box
-pm2 save
-pm2 startup
-```
-
-### C. Konfigurasi Nginx
-File: `/etc/nginx/sites-available/mail-box`
+### Reverse proxy Nginx (satu config multi-domain)
+`/etc/nginx/sites-available/temp-mail-box`
 
 ```nginx
 server {
     listen 80;
-    server_name mail.domainanda.com;
+    server_name mailnesia.com mailboxku.id tmpinbox.net;
 
     location / {
         proxy_pass http://127.0.0.1:4000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -104,43 +67,26 @@ server {
 }
 ```
 
-Aktifkan site:
+Aktifkan:
 ```bash
-sudo ln -s /etc/nginx/sites-available/mail-box /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/temp-mail-box /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### D. SSL (HTTPS) dengan Let's Encrypt
+### HTTPS (Let's Encrypt)
 ```bash
-sudo apt update
-sudo apt install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d mail.domainanda.com
+sudo certbot --nginx -d mailnesia.com -d mailboxku.id -d tmpinbox.net
 ```
 
-Selesai — domain Anda akan langsung mengarah ke aplikasi port 4000.
-
----
-
-## 5) Struktur Singkat Project
-
+## 5) Jalankan sebagai service
 ```bash
-.
-├── app.js
-├── services/messageStore.js
-├── data/messages.json
-├── views/
-├── public/
-└── README.md
+npm install -g pm2
+pm2 start app.js --name temp-mail-box
+pm2 save
+pm2 startup
 ```
 
 ---
 
-## 6) Catatan
-
-Project ini adalah **mailbox simulation/internal messaging**, bukan SMTP/IMAP mail server.
-Jika Anda ingin, tahap berikutnya bisa ditambahkan:
-- autentikasi login real (database user)
-- attachment upload
-- integrasi SMTP (misalnya Nodemailer)
-- deploy Docker
+> Catatan: ini mailbox simulation/internal temp mail untuk workflow aplikasi Anda, bukan server SMTP/IMAP production.

@@ -13,19 +13,19 @@ async function writeAll(messages) {
   await fs.writeFile(DB_PATH, JSON.stringify(messages, null, 2));
 }
 
-function normalizeEmail(value, domain) {
+function normalizeEmail(value, defaultDomain) {
   const input = String(value || '').trim().toLowerCase();
   if (!input) return '';
   if (input.includes('@')) return input;
-  return `${input}@${domain}`;
+  return `${input}@${defaultDomain}`;
 }
 
-async function sendMessage({ from, to, subject, body, domain }) {
+async function sendMessage({ from, to, subject, body, defaultDomain }) {
   const messages = await readAll();
   const message = {
     id: nanoid(10),
-    from: normalizeEmail(from, domain),
-    to: normalizeEmail(to, domain),
+    from: normalizeEmail(from, defaultDomain),
+    to: normalizeEmail(to, defaultDomain),
     subject: subject?.trim() || '(Tanpa Subjek)',
     body: body?.trim() || '-',
     createdAt: new Date().toISOString(),
