@@ -87,6 +87,54 @@ pm2 save
 pm2 startup
 ```
 
+## 6) Bisa pakai tunnel? (untuk STB HG680P)
+
+Bisa. Selama STB Anda bisa menjalankan Node.js dan aplikasi jalan di port `4000`, Anda dapat expose ke internet memakai tunnel.
+
+### Opsi A: Cloudflare Tunnel (paling stabil untuk domain sendiri)
+1. Jalankan aplikasi:
+   ```bash
+   npm run start
+   ```
+2. Download `cloudflared` sesuai arsitektur STB (umumnya ARM).
+3. Login Cloudflare:
+   ```bash
+   cloudflared tunnel login
+   ```
+4. Buat tunnel:
+   ```bash
+   cloudflared tunnel create temp-mail-box
+   ```
+5. Route domain Anda ke tunnel:
+   ```bash
+   cloudflared tunnel route dns temp-mail-box mail.domainanda.com
+   ```
+6. Jalankan tunnel ke app lokal port 4000:
+   ```bash
+   cloudflared tunnel run --url http://localhost:4000 temp-mail-box
+   ```
+
+### Opsi B: Quick tunnel (tanpa domain, cepat untuk testing)
+```bash
+cloudflared tunnel --url http://localhost:4000
+```
+Nanti Anda dapat URL publik acak (`*.trycloudflare.com`).
+
+### Opsi C: LocalTunnel (paling simpel)
+```bash
+npx localtunnel --port 4000
+```
+Jika berhasil, Anda dapat URL publik seperti `https://xxxx.loca.lt`.
+
+### Tips khusus HG680P
+- Pastikan RAM cukup (jalankan hanya service penting).
+- Gunakan PM2 agar app auto-restart.
+- Jika binary tunnel tidak bisa jalan, cek arsitektur:
+  ```bash
+  uname -m
+  ```
+- Untuk akses stabil, lebih disarankan Cloudflare Tunnel dibanding quick tunnel gratis.
+
 ---
 
 > Catatan: ini mailbox simulation/internal temp mail untuk workflow aplikasi Anda, bukan server SMTP/IMAP production.
