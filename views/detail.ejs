@@ -1,0 +1,34 @@
+<%- include('partials/header') %>
+
+<section class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><%= message.subject %></h5>
+    <a href="/inbox" class="btn btn-sm btn-outline-secondary">Kembali</a>
+  </div>
+  <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <small class="text-secondary">Dari</small>
+        <div class="fw-semibold"><%= message.from %></div>
+      </div>
+      <div class="col-md-4">
+        <small class="text-secondary">Kepada</small>
+        <div class="fw-semibold"><%= message.to %></div>
+      </div>
+      <div class="col-md-4">
+        <small class="text-secondary">Waktu</small>
+        <div class="fw-semibold"><%= new Date(message.createdAt).toLocaleString('id-ID') %></div>
+      </div>
+    </div>
+
+    <div class="message-body rounded-3 p-3 bg-light border"><%= message.body %></div>
+
+    <div class="d-flex justify-content-end mt-3">
+      <form action="/messages/<%= message.id %>/trash" method="post">
+        <button class="btn btn-outline-warning js-confirm" data-title="Pindahkan pesan ini ke trash?" data-text="Pesan masih bisa dipulihkan.">Pindah ke Trash</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>
