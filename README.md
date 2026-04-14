@@ -166,6 +166,10 @@ Arsitektur yang direkomendasikan:
 5. Emit event Socket.IO agar inbox user langsung update
 
 Endpoint inbound sudah tersedia di aplikasi: `POST /webhooks/inbound?token=WEBHOOK_SECRET`.
+Endpoint ini menerima beberapa format field umum provider:
+- `to` atau `recipient`
+- `from` atau `sender`
+- `text` atau `stripped-text` atau `body-plain` atau `html`
 
 Contoh test webhook inbound manual:
 ```bash
@@ -190,6 +194,8 @@ cek hal ini:
    - body form: `token=...`
    - header: `x-webhook-token: ...`
    - header: `Authorization: Bearer ...`
+4. Pastikan nilai `to`/`recipient` benar-benar alamat mailbox yang sedang Anda buka di web.
+   - format seperti `Nama User <user@domain.com>` sekarang didukung dan akan diparsing otomatis.
 
 ---
 

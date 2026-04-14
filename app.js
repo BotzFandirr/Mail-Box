@@ -151,10 +151,11 @@ app.post('/webhooks/inbound', async (req, res) => {
     });
   }
 
-  const recipient = normalizeEmail(req.body.to, MAIL_DOMAINS[0]);
-  const sender = normalizeEmail(req.body.from, MAIL_DOMAINS[0]);
+  const recipient = normalizeEmail(req.body.to || req.body.recipient, MAIL_DOMAINS[0]);
+  const sender = normalizeEmail(req.body.from || req.body.sender, MAIL_DOMAINS[0]);
+  const bodyText = req.body.text || req.body['stripped-text'] || req.body.html || req.body['body-plain'];
 
-  if (!recipient || !sender || !req.body.text) {
+  if (!recipient || !sender || !bodyText) {
     return res.status(400).json({ ok: false, message: 'Payload tidak valid' });
   }
 
@@ -162,7 +163,7 @@ app.post('/webhooks/inbound', async (req, res) => {
     from: sender,
     to: recipient,
     subject: req.body.subject || '(Tanpa Subjek)',
-    body: req.body.text,
+    body: bodyText,
     defaultDomain: MAIL_DOMAINS[0]
   });
 

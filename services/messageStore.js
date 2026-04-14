@@ -16,6 +16,17 @@ async function writeAll(messages) {
 function normalizeEmail(value, defaultDomain) {
   const input = String(value || '').trim().toLowerCase();
   if (!input) return '';
+
+  const bracketMatch = input.match(/<([^>]+@[^>]+)>/);
+  if (bracketMatch?.[1]) {
+    return bracketMatch[1].trim();
+  }
+
+  const plainEmailMatch = input.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
+  if (plainEmailMatch?.[0]) {
+    return plainEmailMatch[0].trim();
+  }
+
   if (input.includes('@')) return input;
   return `${input}@${defaultDomain}`;
 }
