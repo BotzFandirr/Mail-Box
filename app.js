@@ -25,7 +25,23 @@ const io = new Server(server);
 
 const PORT = Number(process.env.PORT || 4000);
 const APP_NAME = process.env.APP_NAME || 'Temp Mail Box';
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
+function normalizeWebhookSecret(rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return '';
+
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    try {
+      const url = new URL(raw);
+      return (url.searchParams.get('token') || '').trim();
+    } catch (_error) {
+      return raw;
+    }
+  }
+
+  return raw;
+}
+
+const WEBHOOK_SECRET = normalizeWebhookSecret(process.env.WEBHOOK_SECRET);
 const MAIL_DOMAINS = (process.env.MAIL_DOMAINS || process.env.APP_DOMAIN || 'mail.local')
   .split(',')
   .map((item) => item.trim().toLowerCase())
@@ -57,6 +73,20 @@ function pickDomain(domain) {
 
 function emitMailboxUpdate(email, payload) {
   io.to(`mailbox:${email}`).emit('mailbox:update', payload);
+}
+
+function resolveWebhookToken(req) {
+  const bearer = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.replace('Bearer ', '').trim()
+    : '';
+
+  return String(
+    req.query.token ||
+      req.body.token ||
+      req.headers['x-webhook-token'] ||
+      bearer ||
+      ''
+  ).trim();
 }
 
 app.use((req, res, next) => {
@@ -112,8 +142,13 @@ app.get('/compose', (_req, res) => {
 });
 
 app.post('/webhooks/inbound', async (req, res) => {
-  if (WEBHOOK_SECRET && req.query.token !== WEBHOOK_SECRET) {
-    return res.status(401).json({ ok: false, message: 'Unauthorized token' });
+  const requestToken = resolveWebhookToken(req);
+  if (WEBHOOK_SECRET && requestToken !== WEBHOOK_SECRET) {
+    return res.status(401).json({
+      ok: false,
+      message: 'Unauthorized token',
+      hint: 'Kirim token lewat query ?token=, body token, header x-webhook-token, atau Authorization: Bearer <token>'
+    });
   }
 
   const recipient = normalizeEmail(req.body.to, MAIL_DOMAINS[0]);

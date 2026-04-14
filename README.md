@@ -38,6 +38,7 @@ WEBHOOK_SECRET=ganti-token-webhook
 
 > `MAIL_DOMAINS` dipisah koma. Domain pertama jadi default.
 > `WEBHOOK_SECRET` dipakai untuk mengamankan endpoint inbound email real.
+> Isi `WEBHOOK_SECRET` cukup token saja (contoh: `12345`), **bukan URL webhook penuh**.
 
 ## 3) Cara pakai
 1. Buka halaman utama, klik **Generate Random** untuk email sementara baru.
@@ -174,6 +175,21 @@ curl -X POST "http://localhost:4000/webhooks/inbound?token=ganti-token-webhook" 
   -d "subject=Test Real Inbound" \
   -d "text=Halo ini simulasi inbound dari provider."
 ```
+
+Jika masih muncul:
+```json
+{"ok":false,"message":"Unauthorized token"}
+```
+cek hal ini:
+1. Nilai `.env` `WEBHOOK_SECRET` sama persis dengan token yang Anda kirim.
+   - contoh benar: `WEBHOOK_SECRET=12345`
+   - jangan isi URL penuh; kalau terlanjur, app sekarang akan coba ambil nilai `token` dari URL tersebut.
+2. Setelah ubah `.env`, restart app (`pm2 restart temp-mail-box` atau restart process).
+3. Token bisa dikirim melalui salah satu cara:
+   - query: `?token=...`
+   - body form: `token=...`
+   - header: `x-webhook-token: ...`
+   - header: `Authorization: Bearer ...`
 
 ---
 
