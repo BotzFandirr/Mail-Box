@@ -77,9 +77,30 @@ Setelah itu, route kirim pesan di app akan:
 Jika belum isi SMTP, app hanya simpan internal (tidak terkirim ke Gmail).
 Supaya tidak masuk spam Gmail, pastikan domain Anda memasang SPF, DKIM, dan DMARC.
 
-## 5) Kenapa email dari Gmail belum masuk?
+## 5) Kenapa Gmail kirim ke web belum masuk? (Perbaikan terbaru)
 
-Secara default project ini adalah **internal mailbox simulation**, jadi:
+Sekarang app sudah mendukung **sinkron inbox IMAP** tanpa API trial.
+Artinya, Anda bisa:
+1. pakai mailbox real (hosting/cPanel/Zimbra/dll) yang menerima email domain Anda
+2. app polling IMAP mailbox itu
+3. setiap email baru otomatis disimpan ke inbox web + realtime update Socket.IO
+
+Konfigurasi di `.env`:
+```env
+IMAP_SYNC_ENABLED=true
+IMAP_HOST=imap.domainanda.com
+IMAP_PORT=993
+IMAP_SECURE=true
+IMAP_USER=catchall@domainanda.com
+IMAP_PASS=password_mailbox
+IMAP_POLL_SECONDS=20
+```
+
+> Penting: domain Anda tetap harus punya MX record valid agar email dari Gmail masuk dulu ke mailbox IMAP Anda.
+
+## 6) Kenapa email dari Gmail belum masuk?
+
+Jika Anda **belum mengaktifkan IMAP sync / inbound provider**, project ini hanya internal mailbox simulation:
 - Pesan yang masuk adalah pesan yang dikirim antar user di aplikasi ini.
 - **Belum otomatis menerima email real dari Gmail/Yahoo/outlook**.
 
@@ -90,7 +111,7 @@ Kalau Anda kirim dari Gmail ke alamat temp-mail Anda, agar bisa masuk ke web ini
 
 Tanpa 3 hal di atas, Gmail tidak tahu harus mengirim ke app lokal Anda.
 
-## 6) Setup domain ke server (mudah dikelola)
+## 7) Setup domain ke server (mudah dikelola)
 
 ### DNS
 Buat beberapa `A record` (contoh):
@@ -128,7 +149,7 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d mailnesia.com -d mailboxku.id -d tmpinbox.net
 ```
 
-## 7) Jalankan sebagai service
+## 8) Jalankan sebagai service
 ```bash
 npm install -g pm2
 pm2 start app.js --name temp-mail-box
@@ -136,7 +157,7 @@ pm2 save
 pm2 startup
 ```
 
-## 8) Bisa pakai tunnel? (untuk STB HG680P)
+## 9) Bisa pakai tunnel? (untuk STB HG680P)
 
 Bisa. Selama STB Anda bisa menjalankan Node.js dan aplikasi jalan di port `4000`, Anda dapat expose ke internet memakai tunnel.
 
@@ -184,7 +205,7 @@ Jika berhasil, Anda dapat URL publik seperti `https://xxxx.loca.lt`.
   ```
 - Untuk akses stabil, lebih disarankan Cloudflare Tunnel dibanding quick tunnel gratis.
 
-## 9) Cara dapat real-time + email real beneran
+## 10) Cara dapat real-time + email real beneran
 
 ### Real-time di web (sudah ada)
 - Aplikasi sekarang sudah memakai **Socket.IO**, jadi inbox akan update otomatis saat ada pesan baru internal.

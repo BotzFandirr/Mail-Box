@@ -19,6 +19,7 @@ const {
   hardDelete
 } = require('./services/messageStore');
 const { sendExternalMail } = require('./services/mailer');
+const { startImapPolling } = require('./services/imapSync');
 
 const app = express();
 const server = http.createServer(app);
@@ -323,4 +324,17 @@ io.on('connection', (socket) => {
 server.listen(PORT, () => {
   console.log(`${APP_NAME} berjalan di http://localhost:${PORT}`);
   console.log(`Domain aktif: ${MAIL_DOMAINS.join(', ')}`);
+
+  const imapState = startImapPolling({
+    normalizeEmail,
+    sendMessage,
+    emitMailboxUpdate,
+    defaultDomain: MAIL_DOMAINS[0]
+  });
+
+  if (imapState.started) {
+    console.log(`IMAP polling aktif setiap ${imapState.pollSeconds} detik.`);
+  } else {
+    console.log(`IMAP polling nonaktif: ${imapState.reason}`);
+  }
 });
