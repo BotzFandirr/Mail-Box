@@ -13,6 +13,7 @@ Default berjalan di **port 4000**.
 - Dukungan **banyak domain** sekaligus
 - Ganti email aktif manual (custom username + pilih domain)
 - Inbox, Sent, Trash, restore, delete permanen
+- Update mailbox **real-time** (Socket.IO + auto refresh inbox)
 - UI modern dan responsif
 
 ## 1) Install
@@ -32,16 +33,31 @@ PORT=4000
 APP_NAME=Temp Mail Box
 MAIL_DOMAINS=mailnesia.com,mailboxku.id,tmpinbox.net
 SESSION_SECRET=ganti-secret-anda
+WEBHOOK_SECRET=ganti-token-webhook
 ```
 
 > `MAIL_DOMAINS` dipisah koma. Domain pertama jadi default.
+> `WEBHOOK_SECRET` dipakai untuk mengamankan endpoint inbound email real.
 
 ## 3) Cara pakai
 1. Buka halaman utama, klik **Generate Random** untuk email sementara baru.
 2. Atau isi username sendiri lalu pilih domain, klik **Pakai Email**.
 3. Kirim pesan antar alamat pada domain yang Anda kelola.
 
-## 4) Setup domain ke server (mudah dikelola)
+## 4) Kenapa email dari Gmail belum masuk?
+
+Secara default project ini adalah **internal mailbox simulation**, jadi:
+- Pesan yang masuk adalah pesan yang dikirim antar user di aplikasi ini.
+- **Belum otomatis menerima email real dari Gmail/Yahoo/outlook**.
+
+Kalau Anda kirim dari Gmail ke alamat temp-mail Anda, agar bisa masuk ke web ini Anda butuh:
+1. Domain aktif dengan **MX record** benar.
+2. Layanan penerima email real (contoh: Mailgun Inbound, SendGrid Inbound Parse, Postfix, atau IMAP listener).
+3. Integrasi webhook/IMAP ke endpoint aplikasi supaya pesan disimpan ke `data/messages.json`.
+
+Tanpa 3 hal di atas, Gmail tidak tahu harus mengirim ke app lokal Anda.
+
+## 5) Setup domain ke server (mudah dikelola)
 
 ### DNS
 Buat beberapa `A record` (contoh):
@@ -79,7 +95,7 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d mailnesia.com -d mailboxku.id -d tmpinbox.net
 ```
 
-## 5) Jalankan sebagai service
+## 6) Jalankan sebagai service
 ```bash
 npm install -g pm2
 pm2 start app.js --name temp-mail-box
@@ -87,7 +103,7 @@ pm2 save
 pm2 startup
 ```
 
-## 6) Bisa pakai tunnel? (untuk STB HG680P)
+## 7) Bisa pakai tunnel? (untuk STB HG680P)
 
 Bisa. Selama STB Anda bisa menjalankan Node.js dan aplikasi jalan di port `4000`, Anda dapat expose ke internet memakai tunnel.
 
@@ -134,6 +150,30 @@ Jika berhasil, Anda dapat URL publik seperti `https://xxxx.loca.lt`.
   uname -m
   ```
 - Untuk akses stabil, lebih disarankan Cloudflare Tunnel dibanding quick tunnel gratis.
+
+## 8) Cara dapat real-time + email real beneran
+
+### Real-time di web (sudah ada)
+- Aplikasi sekarang sudah memakai **Socket.IO**, jadi inbox akan update otomatis saat ada pesan baru internal.
+
+### Real-time dari Gmail (butuh provider inbound)
+Arsitektur yang direkomendasikan:
+1. Gmail kirim ke `you@domainanda.com`
+2. Domain MX diarahkan ke provider inbound (misalnya Mailgun)
+3. Provider kirim webhook ke server Anda (misalnya `POST /webhooks/inbound`)
+4. Endpoint webhook simpan pesan ke store
+5. Emit event Socket.IO agar inbox user langsung update
+
+Endpoint inbound sudah tersedia di aplikasi: `POST /webhooks/inbound?token=WEBHOOK_SECRET`.
+
+Contoh test webhook inbound manual:
+```bash
+curl -X POST "http://localhost:4000/webhooks/inbound?token=ganti-token-webhook" \
+  -d "from=sender@gmail.com" \
+  -d "to=tmp-user@mailnesia.com" \
+  -d "subject=Test Real Inbound" \
+  -d "text=Halo ini simulasi inbound dari provider."
+```
 
 ---
 

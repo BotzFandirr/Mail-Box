@@ -2,8 +2,10 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('node:path');
+const http = require('node:http');
 const session = require('express-session');
 const methodOverride = require('method-override');
+const { Server } = require('socket.io');
 const {
   normalizeEmail,
   sendMessage,
@@ -18,9 +20,12 @@ const {
 } = require('./services/messageStore');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 const PORT = Number(process.env.PORT || 4000);
 const APP_NAME = process.env.APP_NAME || 'Temp Mail Box';
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 const MAIL_DOMAINS = (process.env.MAIL_DOMAINS || process.env.APP_DOMAIN || 'mail.local')
   .split(',')
   .map((item) => item.trim().toLowerCase())
@@ -48,6 +53,10 @@ function randomLocalPart() {
 function pickDomain(domain) {
   const safe = String(domain || '').trim().toLowerCase();
   return MAIL_DOMAINS.includes(safe) ? safe : MAIL_DOMAINS[0];
+}
+
+function emitMailboxUpdate(email, payload) {
+  io.to(`mailbox:${email}`).emit('mailbox:update', payload);
 }
 
 app.use((req, res, next) => {
@@ -102,6 +111,35 @@ app.get('/compose', (_req, res) => {
   res.render('compose');
 });
 
+app.post('/webhooks/inbound', async (req, res) => {
+  if (WEBHOOK_SECRET && req.query.token !== WEBHOOK_SECRET) {
+    return res.status(401).json({ ok: false, message: 'Unauthorized token' });
+  }
+
+  const recipient = normalizeEmail(req.body.to, MAIL_DOMAINS[0]);
+  const sender = normalizeEmail(req.body.from, MAIL_DOMAINS[0]);
+
+  if (!recipient || !sender || !req.body.text) {
+    return res.status(400).json({ ok: false, message: 'Payload tidak valid' });
+  }
+
+  const newMessage = await sendMessage({
+    from: sender,
+    to: recipient,
+    subject: req.body.subject || '(Tanpa Subjek)',
+    body: req.body.text,
+    defaultDomain: MAIL_DOMAINS[0]
+  });
+
+  emitMailboxUpdate(newMessage.to, {
+    type: 'new-message',
+    title: 'Email real masuk',
+    text: `${newMessage.subject} dari ${newMessage.from}`
+  });
+
+  return res.json({ ok: true, id: newMessage.id });
+});
+
 app.post('/messages', async (req, res) => {
   const { to, subject, body } = req.body;
   if (!to || !body) {
@@ -109,13 +147,26 @@ app.post('/messages', async (req, res) => {
     return res.redirect('/compose');
   }
 
-  await sendMessage({
+  const newMessage = await sendMessage({
     from: req.session.user,
     to,
     subject,
     body,
     defaultDomain: MAIL_DOMAINS[0]
   });
+
+  emitMailboxUpdate(newMessage.to, {
+    type: 'new-message',
+    title: 'Pesan baru masuk',
+    text: `${newMessage.subject} dari ${newMessage.from}`
+  });
+
+  emitMailboxUpdate(newMessage.from, {
+    type: 'sent-message',
+    title: 'Pesan terkirim',
+    text: `Pesan ke ${newMessage.to} berhasil dikirim`
+  });
+
   setFlash(req, 'success', 'Pesan berhasil dikirim.');
   return res.redirect('/sent');
 });
@@ -158,24 +209,62 @@ app.get('/messages/:id', async (req, res) => {
 });
 
 app.post('/messages/:id/trash', async (req, res) => {
+  const message = await getById(req.params.id);
   await moveToTrash(req.params.id, req.session.user);
+
+  if (message) {
+    emitMailboxUpdate(req.session.user, {
+      type: 'trash-message',
+      title: 'Pesan dipindahkan',
+      text: `Pesan "${message.subject}" dipindahkan ke Trash`
+    });
+  }
+
   setFlash(req, 'success', 'Pesan dipindahkan ke trash.');
   return res.redirect('back');
 });
 
 app.post('/messages/:id/restore', async (req, res) => {
+  const message = await getById(req.params.id);
   await restoreFromTrash(req.params.id, req.session.user);
+
+  if (message) {
+    emitMailboxUpdate(req.session.user, {
+      type: 'restore-message',
+      title: 'Pesan dipulihkan',
+      text: `Pesan "${message.subject}" kembali ke mailbox`
+    });
+  }
+
   setFlash(req, 'success', 'Pesan berhasil dipulihkan.');
   return res.redirect('/trash');
 });
 
 app.post('/messages/:id/delete', async (req, res) => {
+  const message = await getById(req.params.id);
   await hardDelete(req.params.id, req.session.user);
+
+  if (message) {
+    emitMailboxUpdate(req.session.user, {
+      type: 'delete-message',
+      title: 'Pesan dihapus permanen',
+      text: `Pesan "${message.subject}" dihapus permanen`
+    });
+  }
+
   setFlash(req, 'success', 'Pesan dihapus permanen dari mailbox Anda.');
   return res.redirect('/trash');
 });
 
-app.listen(PORT, () => {
+io.on('connection', (socket) => {
+  socket.on('mailbox:watch', (email) => {
+    const normalized = String(email || '').trim().toLowerCase();
+    if (!normalized) return;
+    socket.join(`mailbox:${normalized}`);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(`${APP_NAME} berjalan di http://localhost:${PORT}`);
   console.log(`Domain aktif: ${MAIL_DOMAINS.join(', ')}`);
 });
