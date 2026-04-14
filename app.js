@@ -18,6 +18,7 @@ const {
   restoreFromTrash,
   hardDelete
 } = require('./services/messageStore');
+const { sendExternalMail } = require('./services/mailer');
 
 const app = express();
 const server = http.createServer(app);
@@ -203,7 +204,26 @@ app.post('/messages', async (req, res) => {
     text: `Pesan ke ${newMessage.to} berhasil dikirim`
   });
 
-  setFlash(req, 'success', 'Pesan berhasil dikirim.');
+  let externalResult = { delivered: false, skipped: true, reason: 'SMTP belum dikonfigurasi' };
+  try {
+    externalResult = await sendExternalMail({
+      to: newMessage.to,
+      subject: newMessage.subject,
+      text: newMessage.body,
+      replyTo: newMessage.from
+    });
+  } catch (error) {
+    externalResult = { delivered: false, skipped: false, reason: error.message };
+  }
+
+  if (externalResult.delivered) {
+    setFlash(req, 'success', `Pesan terkirim ke mailbox internal + SMTP (message-id: ${externalResult.messageId}).`);
+  } else if (externalResult.skipped) {
+    setFlash(req, 'warning', 'Pesan tersimpan internal. SMTP belum dikonfigurasi, jadi belum terkirim ke email eksternal (mis. Gmail).');
+  } else {
+    setFlash(req, 'danger', `Pesan internal tersimpan, tapi kirim SMTP gagal: ${externalResult.reason || 'unknown error'}`);
+  }
+
   return res.redirect('/sent');
 });
 

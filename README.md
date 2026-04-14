@@ -34,18 +34,50 @@ APP_NAME=Temp Mail Box
 MAIL_DOMAINS=mailnesia.com,mailboxku.id,tmpinbox.net
 SESSION_SECRET=ganti-secret-anda
 WEBHOOK_SECRET=ganti-token-webhook
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM_NAME=Temp Mail Box
+SMTP_FROM_EMAIL=
 ```
 
 > `MAIL_DOMAINS` dipisah koma. Domain pertama jadi default.
 > `WEBHOOK_SECRET` dipakai untuk mengamankan endpoint inbound email real.
 > Isi `WEBHOOK_SECRET` cukup token saja (contoh: `12345`), **bukan URL webhook penuh**.
+> Untuk kirim email ke Gmail/outlook real, isi konfigurasi SMTP di atas.
 
 ## 3) Cara pakai
 1. Buka halaman utama, klik **Generate Random** untuk email sementara baru.
 2. Atau isi username sendiri lalu pilih domain, klik **Pakai Email**.
 3. Kirim pesan antar alamat pada domain yang Anda kelola.
 
-## 4) Kenapa email dari Gmail belum masuk?
+## 4) Cara agar pesan dari app masuk ke Gmail (tanpa trial API)
+
+Anda **tidak wajib pakai API trial**. Gunakan SMTP biasa:
+- SMTP hosting/domain mail Anda sendiri
+- SMTP server pribadi (Postfix/Exim di VPS)
+- Gmail SMTP dengan App Password (opsional)
+
+Minimal yang harus diisi:
+```env
+SMTP_HOST=smtp.domainanda.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=no-reply@domainanda.com
+SMTP_PASS=password_anda
+SMTP_FROM_EMAIL=no-reply@domainanda.com
+```
+
+Setelah itu, route kirim pesan di app akan:
+1. simpan ke mailbox internal
+2. kirim juga ke email eksternal via SMTP (termasuk Gmail)
+
+Jika belum isi SMTP, app hanya simpan internal (tidak terkirim ke Gmail).
+Supaya tidak masuk spam Gmail, pastikan domain Anda memasang SPF, DKIM, dan DMARC.
+
+## 5) Kenapa email dari Gmail belum masuk?
 
 Secara default project ini adalah **internal mailbox simulation**, jadi:
 - Pesan yang masuk adalah pesan yang dikirim antar user di aplikasi ini.
@@ -58,7 +90,7 @@ Kalau Anda kirim dari Gmail ke alamat temp-mail Anda, agar bisa masuk ke web ini
 
 Tanpa 3 hal di atas, Gmail tidak tahu harus mengirim ke app lokal Anda.
 
-## 5) Setup domain ke server (mudah dikelola)
+## 6) Setup domain ke server (mudah dikelola)
 
 ### DNS
 Buat beberapa `A record` (contoh):
@@ -96,7 +128,7 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d mailnesia.com -d mailboxku.id -d tmpinbox.net
 ```
 
-## 6) Jalankan sebagai service
+## 7) Jalankan sebagai service
 ```bash
 npm install -g pm2
 pm2 start app.js --name temp-mail-box
@@ -104,7 +136,7 @@ pm2 save
 pm2 startup
 ```
 
-## 7) Bisa pakai tunnel? (untuk STB HG680P)
+## 8) Bisa pakai tunnel? (untuk STB HG680P)
 
 Bisa. Selama STB Anda bisa menjalankan Node.js dan aplikasi jalan di port `4000`, Anda dapat expose ke internet memakai tunnel.
 
@@ -152,7 +184,7 @@ Jika berhasil, Anda dapat URL publik seperti `https://xxxx.loca.lt`.
   ```
 - Untuk akses stabil, lebih disarankan Cloudflare Tunnel dibanding quick tunnel gratis.
 
-## 8) Cara dapat real-time + email real beneran
+## 9) Cara dapat real-time + email real beneran
 
 ### Real-time di web (sudah ada)
 - Aplikasi sekarang sudah memakai **Socket.IO**, jadi inbox akan update otomatis saat ada pesan baru internal.
