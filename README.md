@@ -97,6 +97,8 @@ IMAP_POLL_SECONDS=20
 ```
 
 > Penting: domain Anda tetap harus punya MX record valid agar email dari Gmail masuk dulu ke mailbox IMAP Anda.
+> Untuk Gmail, host IMAP adalah `imap.gmail.com` (bukan `smtp.gmail.com`).
+> Pastikan `IMAP_SYNC_ENABLED=true` (kalau `false`, polling memang nonaktif).
 
 ## 6) Kenapa email dari Gmail belum masuk?
 

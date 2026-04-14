@@ -2,8 +2,11 @@ const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 
 function readImapConfig() {
-  const enabled = String(process.env.IMAP_SYNC_ENABLED || 'false').toLowerCase() === 'true';
-  if (!enabled) return null;
+  const rawEnabled = String(process.env.IMAP_SYNC_ENABLED || 'false').trim().toLowerCase();
+  const enabled = ['true', '1', 'yes', 'on'].includes(rawEnabled);
+  if (!enabled) {
+    return { valid: false, reason: `IMAP_SYNC_ENABLED=${process.env.IMAP_SYNC_ENABLED || 'false'} (harus true/1/yes/on)` };
+  }
 
   const host = process.env.IMAP_HOST;
   const port = Number(process.env.IMAP_PORT || 993);
@@ -12,9 +15,20 @@ function readImapConfig() {
   const pass = process.env.IMAP_PASS;
   const pollSeconds = Number(process.env.IMAP_POLL_SECONDS || 20);
 
-  if (!host || !user || !pass) return null;
+  const missing = [];
+  if (!host) missing.push('IMAP_HOST');
+  if (!user) missing.push('IMAP_USER');
+  if (!pass) missing.push('IMAP_PASS');
+
+  if (missing.length > 0) {
+    return {
+      valid: false,
+      reason: `Konfigurasi IMAP kurang: ${missing.join(', ')}`
+    };
+  }
 
   return {
+    valid: true,
     host,
     port,
     secure,
@@ -25,7 +39,7 @@ function readImapConfig() {
 
 async function syncOnce({ normalizeEmail, sendMessage, emitMailboxUpdate, defaultDomain }) {
   const config = readImapConfig();
-  if (!config) return { enabled: false, synced: 0 };
+  if (!config.valid) return { enabled: false, synced: 0, reason: config.reason };
 
   const client = new ImapFlow({
     host: config.host,
@@ -82,8 +96,8 @@ async function syncOnce({ normalizeEmail, sendMessage, emitMailboxUpdate, defaul
 
 function startImapPolling({ normalizeEmail, sendMessage, emitMailboxUpdate, defaultDomain }) {
   const config = readImapConfig();
-  if (!config) {
-    return { started: false, reason: 'IMAP sync tidak aktif / konfigurasi belum lengkap' };
+  if (!config.valid) {
+    return { started: false, reason: config.reason };
   }
 
   const run = async () => {
