@@ -1,0 +1,61 @@
+<%- include('partials/header') %>
+
+<section class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><%= folder %></h5>
+    <span class="badge text-bg-secondary"><%= items.length %> pesan</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Dari / Ke</th>
+          <th>Subjek</th>
+          <th>Waktu</th>
+          <th class="text-end">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!items.length) { %>
+          <tr>
+            <td colspan="4" class="text-center py-5 text-secondary">Belum ada pesan di folder ini.</td>
+          </tr>
+        <% } %>
+        <% items.forEach((item) => { %>
+          <tr>
+            <td>
+              <div class="fw-semibold"><%= type === 'sent' ? item.to : item.from %></div>
+              <% if (type === 'inbox' && !item.readBy.includes(currentUser)) { %>
+                <span class="badge text-bg-primary mt-1">Baru</span>
+              <% } %>
+            </td>
+            <td><%= item.subject %></td>
+            <td><%= new Date(item.createdAt).toLocaleString('id-ID') %></td>
+            <td>
+              <div class="d-flex justify-content-end gap-2">
+                <a href="/messages/<%= item.id %>" class="btn btn-sm btn-outline-dark">Buka</a>
+
+                <% if (type !== 'trash') { %>
+                  <form action="/messages/<%= item.id %>/trash" method="post">
+                    <button class="btn btn-sm btn-outline-warning js-confirm" data-title="Pindahkan ke trash?" data-text="Pesan tetap bisa dipulihkan nanti.">Trash</button>
+                  </form>
+                <% } %>
+
+                <% if (type === 'trash') { %>
+                  <form action="/messages/<%= item.id %>/restore" method="post">
+                    <button class="btn btn-sm btn-outline-success" type="submit">Pulihkan</button>
+                  </form>
+                  <form action="/messages/<%= item.id %>/delete" method="post">
+                    <button class="btn btn-sm btn-outline-danger js-confirm" data-title="Hapus permanen?" data-text="Aksi ini tidak dapat dibatalkan.">Hapus</button>
+                  </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<%- include('partials/footer') %>
